@@ -13,6 +13,7 @@ void setup() {
   sensors.begin();
 
   numberOfDevices = sensors.getDeviceCount();
+  DeviceAddress tempDeviceAddress;
 
   for(int i=0;i<numberOfDevices; i++) {
     // Search the wire for address
