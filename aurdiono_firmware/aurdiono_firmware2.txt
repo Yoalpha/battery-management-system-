@@ -1,0 +1,71 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_BUS 4
+// #define VOLTAGE_PIN A0
+// #define CURRENT PIN A1
+
+const float ref_volt = 5.0;
+const int voltage_pin = 0;
+
+const int samples = 1000;
+const int maxADC = 1023;
+
+const int sens = 0.100; //0.66 volt per amp 
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+float readCurrent(int pin, int samples){
+
+  // getting the average reading from the current sensor
+  int avg_val = 0;
+  for(int i = 0; i < samples; i++){
+
+    avg_val = analogRead(pin);
+
+  }
+
+  //getting the average percent of volt with reference to vcc
+  int cur_val = (avg_val/maxADC)/samples; 
+  int cur = ((cur_val*ref_volt) - 2.5) / sens;
+
+}
+
+float readVoltage(int pin){
+    // reading voltage
+    int val = analogRead(pin);
+    float volts = (val / 1023.0) * ref_volt;
+
+}
+
+float readTemperatre(){
+  sensors.requestTemperatures();
+  return sensors.getTempCByIndex(0);
+}
+
+void setup() {
+  Serial.begin(9600);
+  sensors.begin();
+}
+
+
+
+void loop() {
+  sensors.requestTemperatures();
+  Serial.print(sensors.getTempCByIndex(0));
+  Serial.println("temp:");
+
+  // Serial.println(readTemperatre());
+
+  // Serial.println("Current:");
+  // Serial.println(cur);
+
+  // Serial.println("Voltage:");
+  // Serial.println(volts);
+
+
+  
+  delay(1000);
+
+}
