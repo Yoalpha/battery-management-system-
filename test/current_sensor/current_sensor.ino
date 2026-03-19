@@ -1,5 +1,5 @@
 const float ref_volt = 5.0;
-const float offset = 2.44;
+const float offset = 2.42;
 const int maxADC = 1023;
 const float sens = 0.100; // volts per amp
 int counter = 0;

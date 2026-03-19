@@ -15,6 +15,10 @@
 #define VOLTAGE_SENSOR_PIN A1
 #define VOLTAGE_DIVIDER_RATIO 5.0
 
+//----------TEMPERATURE SENSOR SETTINGS----------
+#define ONE_WIRE_BUS 4
+#define MAX_DEVICES 4
+
 // Loop print interval
 #define PRINT_INTERVAL 1000
 
