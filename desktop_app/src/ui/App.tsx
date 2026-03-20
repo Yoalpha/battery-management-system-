@@ -15,20 +15,20 @@ const navItems = [
 const fallbackTelemetry: BatteryTelemetry = {
   alerts: [],
   homeMetrics: {
-    currentVoltage: 402.8,
-    current: 48.6,
-    temperature: 31.4,
+    currentVoltage: 0,
+    current: 0,
+    temperature: 0,
   },
   batteryState: {
-    stateOfChargePercent: 84,
-    stateOfChargeMah: 4280,
-    remainingCycles: 612,
+    stateOfChargePercent: 0,
+    stateOfChargeMah: 0,
+    remainingCycles: 0,
   },
   voltagePage: {
-    sensorVoltages: [3.35, 3.36, 3.37, 3.34, 3.35, 3.38, 3.41, 3.33, 3.32, 3.36, 3.35, 3.37],
-    averageCellVoltage: 3.36,
-    highestCellVoltage: 3.41,
-    lowestCellVoltage: 3.32,
+    sensorVoltages: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    averageCellVoltage: 0,
+    highestCellVoltage: 0,
+    lowestCellVoltage: 0,
     averageVoltageHistory: [
       { time: '09:00', voltage: 3.31 },
       { time: '09:05', voltage: 3.32 },

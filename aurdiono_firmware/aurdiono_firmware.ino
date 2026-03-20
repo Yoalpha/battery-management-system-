@@ -1,86 +1,80 @@
-#include <OneWire.h>
-#include <DallasTemperature.h>
-
-#define ONE_WIRE_BUS 4
-// #define VOLTAGE_PIN A0
-// #define CURRENT PIN A1
-
-const float ref_volt = 5.0;
-const int voltage_pin = 0;
-const int offset = 2.5;
-const int maxADC = 1023;
-const int sens = 0.100; //0.66 volt per amp 
-
-int counter = 0;
-
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-
-float readCurrent(int adcPin){
-
-    static float filtered = 0;
-
-    float adcValue = analogRead(adcPin);
-    float voltage = (adcValue / 1023.0) * 5.0;
-    float current = (voltage - offset) / sens;
-
-    // simple low-pass filter
-    filtered = 0.9 * filtered + 0.1 * current;
-
-    return filtered;
-}
-
-float readVoltage(int pin){
-    // reading voltage
-    int val = analogRead(pin);
-    float volts = (val / 1023.0) * ref_volt;
-
-}
-
-float readTemperatre(){
-  sensors.requestTemperatures();
-  return sensors.getTempCByIndex(0);
-}
+#include "config.h"
+#include "sensors.h"
+#include "tempSensor.h"
+#include <Arduino.h>
 
 void setup() {
   Serial.begin(115200);
-  sensors.begin();
+  initTemperatureSensors();
 }
 
-
-
 void loop() {
-  sensors.requestTemperatures();
-  
-  int pin = A0;
-  float sum = 0;
 
-  float avg_adc = analogRead(pin);
-  Serial.println(avg_adc);
+  // Temperature Readings
+  int device_count = getDeviceCount();
+  float temperatures[device_count];
 
-  float voltage = (avg_adc / 1023.0) * ref_volt; // ADC → volts
-  float current = (voltage - 2.5) / sens;        // volts → amps
-
-
-
-  //output loop
-  if(counter > 1000){
-
-    counter = 0;
-
-    Serial.print("Current:");
-    Serial.println(current);
-    Serial.print("temp:");
-    Serial.println(sensors.getTempCByIndex(0));
-
+  for (int i = 0; i < device_count; i++) {
+    temperatures[i] = getTemperatureC(i);
   }
-  
-  // Serial.println(readCurrent(A0, 1000));
 
-  // Serial.println("Voltage:");
-  // Serial.println(volts);
+  // Voltage Readings
+  float voltage_readings[NUMBER_OF_VOLTAGE_SENSORS];
+  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
+    voltage_readings[i] = readVoltage(i);
+  }
 
-  
-  delay(1);
+  // Current Readings
+  float current = readCurrent(CURRENT_SENSOR_PIN);
 
+  // Convert to JSON   Serial.print("{");
+
+  // Temps
+  Serial.print("\"temps\":[");
+  for (int i = 0; i < device_count; i++) {
+    Serial.print(temperatures[i]);
+    if (i < device_count - 1)
+      Serial.print(",");
+  }
+  Serial.print("],");
+
+  // Voltages
+  Serial.print("\"voltages\":[");
+  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
+    Serial.print(voltage_readings[i]);
+    if (i < NUMBER_OF_VOLTAGE_SENSORS - 1)
+      Serial.print(",");
+  }
+  Serial.print("],");
+
+  // Current
+  Serial.print("\"current\":");
+  Serial.print(current);
+
+  Serial.println("}");
+  Serial.print("{");
+
+  // Temps
+  Serial.print("\"temps\":[");
+  for (int i = 0; i < device_count; i++) {
+    Serial.print(temperatures[i]);
+    if (i < device_count - 1)
+      Serial.print(",");
+  }
+  Serial.print("],");
+
+  // Voltages
+  Serial.print("\"voltages\":[");
+  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
+    Serial.print(voltage_readings[i]);
+    if (i < NUMBER_OF_VOLTAGE_SENSORS - 1)
+      Serial.print(",");
+  }
+  Serial.print("],");
+
+  // Current
+  Serial.print("\"current\":");
+  Serial.print(current);
+
+  Serial.println("}");
 }

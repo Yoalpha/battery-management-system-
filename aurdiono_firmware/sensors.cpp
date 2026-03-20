@@ -21,7 +21,7 @@ float readCurrent(int adcPin) {
 float readVoltage(int adcPin) {
   int sensorValue = analogRead(adcPin);
   float voltage = sensorValue * (REF_VOLT / MAX_ADC);
-  voltage = voltage * REF_VOLT;
+  voltage = voltage * VOLTAGE_DIVIDER_RATIO;
 
   return voltage;
 }
