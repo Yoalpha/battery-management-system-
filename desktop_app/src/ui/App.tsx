@@ -48,8 +48,12 @@ function App() {
   useEffect(() => {
     window.bmsApi
       ?.getBatteryTelemetry()
-      .then((data) => setTelemetry(data))
-      .catch(() => setTelemetry(fallbackTelemetry))
+      .then(
+        (data) => setTelemetry(data)
+      )
+      .catch(
+        () => setTelemetry(fallbackTelemetry)
+      )
   }, [])
 
   return (

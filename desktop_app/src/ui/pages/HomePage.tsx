@@ -21,8 +21,8 @@ export function HomePage({
       <section className="dashboard__hero">
         <SectionHeader
           eyebrow="Home"
-          title="Battery performance at a glance"
-          description="A minimal control surface for checking voltage, current, and temperature without friction."
+          title="Battery Performance"
+          description="Battery Telematry Summary"
         />
 
         <section className="alerts-card" aria-label="Battery alerts">

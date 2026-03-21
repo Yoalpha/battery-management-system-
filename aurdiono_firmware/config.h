@@ -1,6 +1,9 @@
-// Senor Configurations
 #ifndef CONFIG_H
 #define CONFIG_H
+
+#include <Arduino.h>
+
+// Senor Configurations
 // ----------CURRENT SENSOR SETTINGS----------
 #define CURRENT_SENSOR_PIN A0
 #define REF_VOLT 5.0
@@ -10,7 +13,7 @@
 //---------------------------------------------
 
 //----------VOLTAGE SENSOR SETTINGS----------
-#define VOLTAGE_PINS {A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12}
+const int VOLTAGE_PINS[] = {A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12};
 #define NUMBER_OF_VOLTAGE_SENSORS 12
 #define VOLTAGE_DIVIDER_RATIO 5.0
 //-------------------------------------------

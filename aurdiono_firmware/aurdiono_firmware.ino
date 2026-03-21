@@ -1,7 +1,10 @@
 #include "config.h"
+#include "create_json.h"
 #include "sensors.h"
 #include "tempSensor.h"
 #include <Arduino.h>
+
+int voltage_pin;
 
 void setup() {
   Serial.begin(115200);
@@ -21,60 +24,13 @@ void loop() {
   // Voltage Readings
   float voltage_readings[NUMBER_OF_VOLTAGE_SENSORS];
   for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
-    voltage_readings[i] = readVoltage(i);
+    voltage_pin = VOLTAGE_PINS[i];
+    voltage_readings[i] = readVoltage(voltage_pin);
   }
 
   // Current Readings
   float current = readCurrent(CURRENT_SENSOR_PIN);
 
-  // Convert to JSON   Serial.print("{");
-
-  // Temps
-  Serial.print("\"temps\":[");
-  for (int i = 0; i < device_count; i++) {
-    Serial.print(temperatures[i]);
-    if (i < device_count - 1)
-      Serial.print(",");
-  }
-  Serial.print("],");
-
-  // Voltages
-  Serial.print("\"voltages\":[");
-  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
-    Serial.print(voltage_readings[i]);
-    if (i < NUMBER_OF_VOLTAGE_SENSORS - 1)
-      Serial.print(",");
-  }
-  Serial.print("],");
-
-  // Current
-  Serial.print("\"current\":");
-  Serial.print(current);
-
-  Serial.println("}");
-  Serial.print("{");
-
-  // Temps
-  Serial.print("\"temps\":[");
-  for (int i = 0; i < device_count; i++) {
-    Serial.print(temperatures[i]);
-    if (i < device_count - 1)
-      Serial.print(",");
-  }
-  Serial.print("],");
-
-  // Voltages
-  Serial.print("\"voltages\":[");
-  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
-    Serial.print(voltage_readings[i]);
-    if (i < NUMBER_OF_VOLTAGE_SENSORS - 1)
-      Serial.print(",");
-  }
-  Serial.print("],");
-
-  // Current
-  Serial.print("\"current\":");
-  Serial.print(current);
-
-  Serial.println("}");
+  printJSON(current, voltage_readings, temperatures);
+  delay(1000);
 }
