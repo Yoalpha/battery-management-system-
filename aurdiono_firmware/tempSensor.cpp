@@ -39,5 +39,6 @@ int getDeviceCount() { return numberOfDevices; }
 // Returns the temperature of the indexed sensor in celcius
 float getTemperatureC(int index) {
   sensors.requestTemperatures();
-  sensors.getTempC(deviceAddresses[index]);
+  float tempC = sensors.getTempC(deviceAddresses[index]);
+  return tempC;
 }
