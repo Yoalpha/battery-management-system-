@@ -13,6 +13,8 @@ export async function parseSerial() {
       Array.isArray(Data.current)) {
 
       console.log(Data.temps);
+      console.log(Data.voltages);
+      console.log(Data.current);
 
     } else {
       console.log('not JSON');
