@@ -14,9 +14,9 @@ void printJSON(float current, float voltage_readings[], float temperatures[]) {
 
   // Voltages
   Serial.print("\"voltages\":[");
-  for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS; i++) {
+  for (int i = 0; i < TOTAL_VOLTAGE_SENSORS; i++) {
     Serial.print(voltage_readings[i]);
-    if (i < NUMBER_OF_VOLTAGE_SENSORS - 1)
+    if (i < TOTAL_VOLTAGE_SENSORS - 1)
       Serial.print(",");
   }
   Serial.print("],");

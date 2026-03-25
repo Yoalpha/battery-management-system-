@@ -1,5 +1,16 @@
 #include "config.h"
 #include <Arduino.h>
+
+long readVref() {
+  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  delay(2);
+  ADCSRA |= _BV(ADSC);
+  while (bit_is_set(ADCSRA, ADSC))
+    ;
+  long result = ADC;
+  return 1125300L / result; // mV
+}
+
 float readCurrent(int adcPin) {
   static float filtered = 0;
 
@@ -18,10 +29,18 @@ float readCurrent(int adcPin) {
   return filtered;
 }
 
-float readVoltage(int adcPin) {
+float readVoltageLow(int adcPin) {
   int sensorValue = analogRead(adcPin);
-  float voltage = sensorValue * (REF_VOLT / MAX_ADC);
+  float x = sensorValue * 5;
+  float voltage = x / MAX_ADC;
   voltage = voltage * VOLTAGE_DIVIDER_RATIO;
+  return voltage;
+}
 
+float readVoltageHigh(int adcPin) {
+  int sensorValue = analogRead(adcPin);
+  float x = sensorValue * 5;
+  float voltage = x / MAX_ADC;
+  voltage = voltage * (33.3 / 3.3);
   return voltage;
 }
