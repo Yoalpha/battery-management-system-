@@ -8,8 +8,9 @@
 #define CURRENT_SENSOR_PIN A0
 #define REF_VOLT 5.0
 #define MAX_ADC 1023.0
-#define CURRENT_SENSOR_OFFSET 2.44
-#define CURRENT_SENSOR_SENS 0.100 // volts per amp
+#define CURRENT_SENSOR_OFFSET 2.5
+#define CURRENT_SENSOR_SENS 0.113 // volts per amp
+#define CALIBRATION_GAIN 1.05
 //---------------------------------------------
 
 //----------VOLTAGE SENSOR SETTINGS----------

@@ -9,6 +9,7 @@ int voltage_pin;
 void setup() {
   Serial.begin(115200);
   initTemperatureSensors();
+  initCurrentSensor();
 }
 
 void loop() {
@@ -47,8 +48,6 @@ void loop() {
   for (int i = 0; i < NUMBER_OF_VOLTAGE_SENSORS_HIGH; i++) {
       voltage_readings[i + NUMBER_OF_VOLTAGE_SENSORS_LOW] = voltage_readings_high[i];
   }
-
-  
 
   // Current Readings
   float current = readCurrent(CURRENT_SENSOR_PIN);
