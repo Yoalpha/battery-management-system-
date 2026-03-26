@@ -391,7 +391,7 @@ body {
   min-height: 0;
 }
 
-.voltage-chart {
+.trend-chart {
   width: 100%;
   max-width: 100%;
   height: 100%;
@@ -399,30 +399,55 @@ body {
   margin: 0 auto;
 }
 
-.voltage-chart__grid {
+.trend-chart__grid {
   stroke: rgba(16, 35, 29, 0.09);
   stroke-width: 1;
 }
 
-.voltage-chart__area {
+.trend-chart__area {
   fill: rgba(31, 122, 99, 0.14);
 }
 
-.voltage-chart__line {
+.trend-chart__area--voltage {
+  fill: rgba(31, 122, 99, 0.14);
+}
+
+.trend-chart__area--current {
+  fill: rgba(45, 143, 136, 0.16);
+}
+
+.trend-chart__area--temperature {
+  fill: rgba(211, 108, 67, 0.16);
+}
+
+.trend-chart__line {
   fill: none;
-  stroke: var(--accent-voltage);
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.voltage-chart__point {
-  fill: #ffffff;
+.trend-chart--voltage .trend-chart__line,
+.trend-chart--voltage .trend-chart__point {
   stroke: var(--accent-voltage);
+}
+
+.trend-chart--current .trend-chart__line,
+.trend-chart--current .trend-chart__point {
+  stroke: var(--accent-current);
+}
+
+.trend-chart--temperature .trend-chart__line,
+.trend-chart--temperature .trend-chart__point {
+  stroke: var(--accent-temperature);
+}
+
+.trend-chart__point {
+  fill: #ffffff;
   stroke-width: 3;
 }
 
-.voltage-chart__label {
+.trend-chart__label {
   fill: var(--text-secondary);
   font-size: 12px;
 }

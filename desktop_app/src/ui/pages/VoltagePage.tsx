@@ -62,7 +62,7 @@ export function VoltagePage({ voltagePage }: VoltagePageProps) {
           >
             {voltagePage.sensorVoltages.map((voltage, index) => (
               <div key={index} className="sensor-list-card__item">
-                <span>{`Sensor ${index}`}</span>
+                <span>{`Sensor ${index + 1}`}</span>
                 <strong>{voltage} V</strong>
               </div>
             ))}

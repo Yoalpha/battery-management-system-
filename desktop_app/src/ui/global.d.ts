@@ -1,10 +1,12 @@
-// defined global interface so type script knows bmsApi exists 
-import type { BatteryTelemetry } from './types/battery'
+import type { BatteryTelemetry } from '../shared/battery'
 
 declare global {
   interface Window {
     bmsApi?: {
       getBatteryTelemetry: () => Promise<BatteryTelemetry>
+      subscribeToBatteryTelemetry: (
+        listener: (telemetry: BatteryTelemetry) => void
+      ) => () => void
     }
   }
 }

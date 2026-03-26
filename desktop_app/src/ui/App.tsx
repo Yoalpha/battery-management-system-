@@ -2,6 +2,8 @@ import './App.css'
 import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { HomePage } from './pages/HomePage'
+import { CurrentPage } from './pages/CurrentPage'
+import { TemperaturePage } from './pages/TemperaturePage'
 import { VoltagePage } from './pages/VoltagePage'
 import type { BatteryTelemetry, PageId } from './types/battery'
 
@@ -30,13 +32,25 @@ const fallbackTelemetry: BatteryTelemetry = {
     highestCellVoltage: 0,
     lowestCellVoltage: 0,
     averageVoltageHistory: [
-      { time: '09:00', voltage: 3.31 },
-      { time: '09:05', voltage: 3.32 },
-      { time: '09:10', voltage: 3.33 },
-      { time: '09:15', voltage: 3.34 },
-      { time: '09:20', voltage: 3.35 },
-      { time: '09:25', voltage: 3.35 },
-      { time: '09:30', voltage: 3.36 },
+      { time: '09:00', value: 0 },
+      { time: '09:05', value: 0 },
+    ],
+  },
+  currentPage: {
+    sensorCurrent: 0,
+    currentHistory: [
+      { time: '09:00', value: 0 },
+      { time: '09:05', value: 0 },
+    ],
+  },
+  temperaturePage: {
+    sensorTemperatures: [0, 0, 0, 0],
+    averageTemperature: 0,
+    highestTemperature: 0,
+    lowestTemperature: 0,
+    averageTemperatureHistory: [
+      { time: '09:00', value: 0 },
+      { time: '09:05', value: 0 },
     ],
   },
 }
@@ -46,6 +60,10 @@ function App() {
   const [telemetry, setTelemetry] = useState<BatteryTelemetry>(fallbackTelemetry)
 
   useEffect(() => {
+    const unsubscribe = window.bmsApi?.subscribeToBatteryTelemetry((data) => {
+      setTelemetry(data)
+    })
+
     window.bmsApi
       ?.getBatteryTelemetry()
       .then(
@@ -54,6 +72,10 @@ function App() {
       .catch(
         () => setTelemetry(fallbackTelemetry)
       )
+
+    return () => {
+      unsubscribe?.()
+    }
   }, [])
 
   return (
@@ -80,17 +102,11 @@ function App() {
         )}
 
         {activePage === 'current' && (
-          <section className="placeholder-page">
-            <span className="dashboard__eyebrow">Current</span>
-            <h2>Current page is ready for backend data.</h2>
-          </section>
+          <CurrentPage currentPage={telemetry.currentPage} />
         )}
 
         {activePage === 'temperature' && (
-          <section className="placeholder-page">
-            <span className="dashboard__eyebrow">Temperature</span>
-            <h2>Temperature page is ready for backend data.</h2>
-          </section>
+          <TemperaturePage temperaturePage={telemetry.temperaturePage} />
         )}
       </main>
     </div>
