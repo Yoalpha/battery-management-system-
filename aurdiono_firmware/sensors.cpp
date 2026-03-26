@@ -34,7 +34,7 @@ float readVoltageLow(int adcPin) {
   float x = sensorValue * 5;
   float voltage = x / MAX_ADC;
   voltage = voltage * VOLTAGE_DIVIDER_RATIO;
-  return voltage;
+  return voltage * LOW_CALIBRATION_FACTOR;
 }
 
 float readVoltageHigh(int adcPin) {
@@ -42,5 +42,5 @@ float readVoltageHigh(int adcPin) {
   float x = sensorValue * 5;
   float voltage = x / MAX_ADC;
   voltage = voltage * (33.3 / 3.3);
-  return voltage;
+  return voltage * HIGH_CALIBRATION_FACTOR;
 }

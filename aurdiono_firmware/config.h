@@ -19,10 +19,12 @@ const int VOLTAGE_PINS_HIGH[] = {A8, A9, A10, A11, A12, A13};
 #define NUMBER_OF_VOLTAGE_SENSORS_LOW 6
 #define TOTAL_VOLTAGE_SENSORS 12
 #define VOLTAGE_DIVIDER_RATIO 5.0
+#define LOW_CALIBRATION_FACTOR 0.998
+#define HIGH_CALIBRATION_FACTOR 0.989
 //-------------------------------------------
 
 //----------TEMPERATURE SENSOR SETTINGS----------
-#define ONE_WIRE_BUS 4
+#define ONE_WIRE_BUS 5
 #define MAX_DEVICES 4
 //-----------------------------------------------
 #endif
