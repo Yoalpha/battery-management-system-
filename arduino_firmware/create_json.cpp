@@ -1,13 +1,13 @@
 #include "config.h"
 #include <Arduino.h>
 
-void printJSON(float current, float voltage_readings[], float temperatures[]) {
+void printJSON(float current, float voltage_readings[], float temperatures[], int temperatureCount) {
   Serial.print("{");
   // Temps
   Serial.print("\"temps\":[");
-  for (int i = 0; i < MAX_DEVICES; i++) {
+  for (int i = 0; i < temperatureCount; i++) {
     Serial.print(temperatures[i]);
-    if (i < MAX_DEVICES - 1)
+    if (i < temperatureCount - 1)
       Serial.print(",");
   }
   Serial.print("],");

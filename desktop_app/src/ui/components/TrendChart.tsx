@@ -6,6 +6,7 @@ type TrendChartProps = {
   title: string
   ariaLabel: string
   accent: 'voltage' | 'current' | 'temperature'
+  windowMs?: number | null
 }
 
 const areaClassNameByAccent = {
@@ -20,14 +21,27 @@ export function TrendChart({
   title,
   ariaLabel,
   accent,
+  windowMs = 10 * 60 * 1000,
 }: TrendChartProps) {
-  const safeData =
-    data.length > 0
-      ? data
-      : [
-          { time: '00:00', value: 0 },
-          { time: '00:05', value: 0 },
-        ]
+  const sortedData = [...data].sort((left, right) => left.timestampMs - right.timestampMs)
+  const latestTimestamp = sortedData.length > 0
+    ? sortedData[sortedData.length - 1].timestampMs
+    : 0
+  const earliestTimestamp = sortedData.length > 0
+    ? sortedData[0].timestampMs
+    : 0
+  const fallbackSpanMs = windowMs ?? 10 * 60 * 1000
+  const spanMs = windowMs ?? Math.max(latestTimestamp - earliestTimestamp, 60_000)
+  const windowStartMs = windowMs == null
+    ? earliestTimestamp
+    : latestTimestamp - windowMs
+  const pointsInWindow = sortedData.filter((point) => point.timestampMs >= windowStartMs)
+  const safeData = pointsInWindow.length > 0
+    ? pointsInWindow
+    : [
+        { time: '00:00', timestampMs: windowStartMs, value: 0 },
+        { time: '00:10', timestampMs: windowStartMs + fallbackSpanMs, value: 0 },
+      ]
 
   const width = 760
   const height = 280
@@ -38,16 +52,27 @@ export function TrendChart({
   const maxValue = Math.max(...values)
   const range = Math.max(maxValue - minValue, 0.1)
 
-  const toX = (index: number) =>
-    padding + (index / Math.max(safeData.length - 1, 1)) * (width - padding * 2)
+  const toX = (timestampMs: number) =>
+    padding + ((timestampMs - windowStartMs) / Math.max(spanMs, 1)) * (width - padding * 2)
   const toY = (value: number) =>
     height - padding - ((value - minValue) / range) * (height - padding * 2)
 
   const linePath = safeData
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(index)} ${toY(point.value)}`)
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(point.timestampMs)} ${toY(point.value)}`)
     .join(' ')
 
-  const areaPath = `${linePath} L ${toX(safeData.length - 1)} ${height - padding} L ${toX(0)} ${height - padding} Z`
+  const areaPath = `${linePath} L ${toX(safeData[safeData.length - 1].timestampMs)} ${height - padding} L ${toX(safeData[0].timestampMs)} ${height - padding} Z`
+  const xAxisTicks = Array.from({ length: 6 }, (_, index) => {
+    const timestampMs = windowStartMs + (Math.max(spanMs, 1) / 5) * index
+
+    return {
+      timestampMs,
+      label: new Date(timestampMs).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    }
+  })
 
   return (
     <section className="chart-card">
@@ -83,23 +108,27 @@ export function TrendChart({
           <path d={areaPath} className={areaClassNameByAccent[accent]} />
           <path d={linePath} className="trend-chart__line" />
 
-          {safeData.map((point, index) => (
-            <g key={`${point.time}-${point.value}`}>
+          {safeData.map((point) => (
+            <g key={`${point.timestampMs}-${point.value}`}>
               <circle
-                cx={toX(index)}
+                cx={toX(point.timestampMs)}
                 cy={toY(point.value)}
                 r="5"
                 className="trend-chart__point"
               />
-              <text
-                x={toX(index)}
-                y={height - 8}
-                textAnchor="middle"
-                className="trend-chart__label"
-              >
-                {point.time}
-              </text>
             </g>
+          ))}
+
+          {xAxisTicks.map((tick) => (
+            <text
+              key={tick.timestampMs}
+              x={toX(tick.timestampMs)}
+              y={height - 8}
+              textAnchor="middle"
+              className="trend-chart__label"
+            >
+              {tick.label}
+            </text>
           ))}
         </svg>
       </div>

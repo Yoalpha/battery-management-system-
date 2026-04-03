@@ -16,7 +16,9 @@ void loop() {
 
   // Temperature Readings
   int device_count = getDeviceCount();
-  float temperatures[device_count];
+  float temperatures[MAX_DEVICES];
+
+  requestTemperatureReadings();
 
   for (int i = 0; i < device_count; i++) {
     temperatures[i] = getTemperatureC(i);
@@ -52,6 +54,6 @@ void loop() {
   // Current Readings
   float current = readCurrent(CURRENT_SENSOR_PIN);
 
-  printJSON(current, voltage_readings, temperatures);
+  printJSON(current, voltage_readings, temperatures, device_count);
   delay(1000);
 }

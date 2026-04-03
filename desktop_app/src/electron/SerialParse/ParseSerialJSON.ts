@@ -7,6 +7,12 @@ export type NormalizedArduinoData = {
   current: number
 }
 
+type ParseSerialOptions = {
+  onData: (data: NormalizedArduinoData) => void
+  onDisconnected?: () => void
+  reconnectDelayMs?: number
+}
+
 function normalizeArduinoData(data: ArduinoData): NormalizedArduinoData | null {
   const currentValue = Array.isArray(data.current) ? data.current[0] : data.current
 
@@ -34,26 +40,77 @@ function normalizeArduinoData(data: ArduinoData): NormalizedArduinoData | null {
 }
 
 export async function parseSerial(
-  onData: (data: NormalizedArduinoData) => void
+  {
+    onData,
+    onDisconnected,
+    reconnectDelayMs = 2_000,
+  }: ParseSerialOptions
 ): Promise<(() => void) | null> {
-  return serialReader({
-    onLine: (streamData) => {
-      try {
-        const parsedData = JSON.parse(streamData) as ArduinoData
-        const normalizedData = normalizeArduinoData(parsedData)
+  let readerCleanup: (() => void) | null = null
+  let reconnectTimer: NodeJS.Timeout | null = null
+  let stopRequested = false
 
-        if (normalizedData != null) {
-          onData(normalizedData)
-          return
+  const clearReconnectTimer = () => {
+    if (reconnectTimer != null) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+  }
+
+  const scheduleReconnect = () => {
+    if (stopRequested || reconnectTimer != null) {
+      return
+    }
+
+    onDisconnected?.()
+
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      void connect()
+    }, reconnectDelayMs)
+  }
+
+  const connect = async () => {
+    if (stopRequested) {
+      return
+    }
+
+    readerCleanup = await serialReader({
+      onLine: (streamData) => {
+        try {
+          const parsedData = JSON.parse(streamData) as ArduinoData
+          const normalizedData = normalizeArduinoData(parsedData)
+
+          if (normalizedData != null) {
+            clearReconnectTimer()
+            onData(normalizedData)
+            return
+          }
+
+          console.log('Serial payload missing expected telemetry arrays')
+        } catch {
+          console.log(streamData)
         }
-
-        console.log('Serial payload missing expected telemetry arrays')
-      } catch {
-        console.log(streamData)
+      },
+      onError: (error) => {
+        console.error('Serial parser error:', error.message)
+        scheduleReconnect()
+      },
+      onClose: () => {
+        scheduleReconnect()
       }
-    },
-    onError: (error) => {
-      console.error('Serial parser error:', error.message)
-    },
-  })
+    })
+
+    if (readerCleanup == null) {
+      scheduleReconnect()
+    }
+  }
+
+  await connect()
+
+  return () => {
+    stopRequested = true
+    clearReconnectTimer()
+    readerCleanup?.()
+  }
 }

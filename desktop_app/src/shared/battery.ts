@@ -1,8 +1,28 @@
-export type PageId = 'home' | 'voltage' | 'current' | 'temperature'
+export type PageId = 'home' | 'voltage' | 'current' | 'temperature' | 'history'
 
 export type TrendPoint = {
   time: string
+  timestampMs: number
   value: number
+}
+
+export type DischargeCycleSummary = {
+  id: number
+  startedAtMs: number
+  endedAtMs: number | null
+  status: string
+  startPackVoltage: number
+  endPackVoltage: number | null
+  triggerCurrent: number
+  sampleCount: number
+  drainedMah: number
+}
+
+export type DischargeCycleDetail = {
+  summary: DischargeCycleSummary
+  voltageTrend: TrendPoint[]
+  currentTrend: TrendPoint[]
+  temperatureTrend: TrendPoint[]
 }
 
 export type BatteryTelemetry = {

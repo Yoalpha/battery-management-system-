@@ -1,1 +1,7 @@
-export type { BatteryTelemetry, PageId, TrendPoint } from '../../shared/battery'
+export type {
+  BatteryTelemetry,
+  DischargeCycleDetail,
+  DischargeCycleSummary,
+  PageId,
+  TrendPoint,
+} from '../../shared/battery'

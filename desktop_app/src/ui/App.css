@@ -543,6 +543,106 @@ body {
   font-size: 1.1rem;
 }
 
+.history-page {
+  display: grid;
+  gap: 24px;
+}
+
+.history-list-card {
+  display: grid;
+  gap: 18px;
+}
+
+.history-empty-state,
+.history-cycle-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 28px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.history-empty-state {
+  padding: 32px;
+  display: grid;
+  gap: 8px;
+}
+
+.history-empty-state strong {
+  color: var(--text-primary);
+  font-size: 1.15rem;
+}
+
+.history-empty-state span,
+.history-cycle-card__summary-main p,
+.history-cycle-card__summary-stats span,
+.history-detail-loading span {
+  color: var(--text-secondary);
+}
+
+.history-cycle-card {
+  overflow: hidden;
+}
+
+.history-cycle-card__summary {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 24px 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  gap: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-cycle-card__summary-main h3 {
+  margin: 10px 0 8px;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.history-cycle-card__summary-main p {
+  margin: 0;
+}
+
+.history-cycle-card__summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.history-cycle-card__summary-stats div {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(239, 245, 241, 0.95);
+}
+
+.history-cycle-card__summary-stats span {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.history-cycle-card__summary-stats strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.history-cycle-card__detail {
+  border-top: 1px solid var(--border-soft);
+  padding: 0 28px 28px;
+  display: grid;
+  gap: 20px;
+}
+
+.history-detail-loading {
+  padding: 18px 0 8px;
+}
+
+.history-trend-grid {
+  display: grid;
+  gap: 20px;
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -575,6 +675,14 @@ body {
 
   .chart-card {
     min-height: 360px;
+  }
+
+  .history-cycle-card__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .history-cycle-card__summary-stats {
+    grid-template-columns: 1fr;
   }
 }
 

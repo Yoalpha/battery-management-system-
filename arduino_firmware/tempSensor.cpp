@@ -25,6 +25,10 @@ void initTemperatureSensors() {
   sensors.begin();
   numberOfDevices = sensors.getDeviceCount();
 
+  if (numberOfDevices > MAX_DEVICES) {
+    numberOfDevices = MAX_DEVICES;
+  }
+
   for (int i = 0; i < numberOfDevices; i++) {
     sensors.getAddress(deviceAddresses[i], i);
     Serial.print("CONNECTED DEVICE: ");
@@ -33,12 +37,13 @@ void initTemperatureSensors() {
   }
 }
 
+void requestTemperatureReadings() { sensors.requestTemperatures(); }
+
 // Returns the number of devices connected to the arduino
 int getDeviceCount() { return numberOfDevices; }
 
 // Returns the temperature of the indexed sensor in celcius
 float getTemperatureC(int index) {
-  sensors.requestTemperatures();
   float tempC = sensors.getTempC(deviceAddresses[index]);
   return tempC;
 }

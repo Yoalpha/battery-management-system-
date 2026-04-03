@@ -5,11 +5,13 @@ import { findArduinoPort } from './IdentifyArduino.js'
 type SerialReaderOptions = {
   onLine: (line: string) => void
   onError?: (error: Error) => void
+  onClose?: () => void
 }
 
 export async function serialReader({
   onLine,
   onError,
+  onClose,
 }: SerialReaderOptions): Promise<(() => void) | null> {
   const portPath = await findArduinoPort()
 
@@ -34,8 +36,15 @@ export async function serialReader({
     onError?.(error)
   })
 
+  port.on('close', () => {
+    console.log('Serial port closed')
+    onClose?.()
+  })
+
   return () => {
     parser.removeAllListeners('data')
+    port.removeAllListeners('error')
+    port.removeAllListeners('close')
 
     if (port.isOpen) {
       port.close((error) => {
