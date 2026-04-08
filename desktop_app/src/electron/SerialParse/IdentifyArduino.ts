@@ -1,5 +1,6 @@
 import { SerialPort } from 'serialport'
 
+// Pick the first serial port that looks like an attached Arduino board.
 export async function findArduinoPort(): Promise<string | null> {
   const ports = await SerialPort.list()
 

@@ -75,8 +75,8 @@ export function HomePage({
             value={`${batteryState.stateOfChargeMah} mAh`}
           />
           <StateCard
-            label="Remaining Cycles Left"
-            value={String(batteryState.remainingCycles)}
+            label="Internal Resistance Growth (ohms)"
+            value={String(batteryState.internalResistanceGrowth)}
           />
         </div>
       </section>

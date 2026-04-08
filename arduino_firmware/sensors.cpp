@@ -1,16 +1,7 @@
 #include "config.h"
 #include <Arduino.h>
-static float offset = CURRENT_SENSOR_OFFSET;
 
-long readVref() {
-  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-  delay(2);
-  ADCSRA |= _BV(ADSC);
-  while (bit_is_set(ADCSRA, ADSC))
-    ;
-  long result = ADC;
-  return 1125300L / result; // mV
-}
+static float offset = CURRENT_SENSOR_OFFSET;
 
 // --- CURRENT SENSOR ---
 

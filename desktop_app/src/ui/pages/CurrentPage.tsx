@@ -32,7 +32,7 @@ export function CurrentPage({ currentPage }: CurrentPageProps) {
           />
           <MetricCard
             title="Direction"
-            value={currentPage.sensorCurrent >= 0 ? 'Charge' : 'Discharge'}
+            value={currentPage.sensorCurrent >= 0 ? 'Discharge' : 'Charge'}
             unit=""
             trend="Derived from live reading"
             accent="voltage"

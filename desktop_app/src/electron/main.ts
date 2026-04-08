@@ -16,12 +16,13 @@ const serialDisconnectedAlert = 'Waiting for Arduino serial connection.'
 const dischargeRecordingAlert = 'Discharge cycle recording in progress.'
 const dischargeConfirmationAlert = 'Discharge detected. Confirm to begin recording this discharge cycle.'
 const lowVoltageAlert = 'Pack voltage reached 35 V. Data polling has been stopped.'
-const dischargeStartThresholdAmps = -1
-const dischargeEndThresholdAmps = -0.2
+const dischargeStartThresholdAmps = 1
+const dischargeEndThresholdAmps = 0.2
 const dischargeStartHoldMs = 5_000
 const dischargeEndHoldMs = 20_000
 const minimumPackVoltage = 35
 
+// Seed the live charts with placeholder points so the UI has a stable shape before serial data arrives.
 function createInitialHistory(values: Array<{ time: string; value: number }>, now = Date.now()): TrendPoint[] {
   const stepMs = historyWindowMs / Math.max(values.length - 1, 1)
 
@@ -42,6 +43,7 @@ const batteryTelemetry: BatteryTelemetry = {
     stateOfChargePercent: 84,
     stateOfChargeMah: 4280,
     remainingCycles: 612,
+    internalResistanceGrowth: 0
   },
   voltagePage: {
     sensorVoltages: [3.35, 3.36, 3.37, 3.34, 3.35, 3.38, 3.41, 3.33, 3.32, 3.36, 3.35, 3.37],
@@ -93,22 +95,26 @@ let telemetryStore: TelemetryStore | null = null
 let activeCycleId: number | null = null
 let dischargeState: 'idle' | 'candidate_discharge' | 'awaiting_confirmation' | 'discharging' | 'candidate_end' = 'idle'
 let dischargeStateSinceMs: number | null = null
-let pollingStopped = false
+let loggingStoppedForLowVoltage = false
 
+// Add a user-facing alert only once.
 function addAlert(message: string) {
   if (!batteryTelemetry.alerts.includes(message)) {
     batteryTelemetry.alerts = [...batteryTelemetry.alerts, message]
   }
 }
 
+// Remove a user-facing alert if it is no longer relevant.
 function removeAlert(message: string) {
   batteryTelemetry.alerts = batteryTelemetry.alerts.filter((alert) => alert !== message)
 }
 
+// Push the latest in-memory telemetry snapshot to the renderer process.
 function sendTelemetryUpdate() {
   mainWindow?.webContents.send(batteryTelemetryChannel, batteryTelemetry)
 }
 
+// Format timestamps for chart labels and compact UI display.
 function formatTimeLabel(date: Date) {
   return date.toLocaleTimeString([], {
     hour: '2-digit',
@@ -116,6 +122,7 @@ function formatTimeLabel(date: Date) {
   })
 }
 
+// Append one point to a rolling chart history and trim anything older than the 10 minute window.
 function appendHistory(history: TrendPoint[], value: number) {
   const timestampMs = Date.now()
 
@@ -130,8 +137,17 @@ function appendHistory(history: TrendPoint[], value: number) {
   }
 }
 
+// Compute a numeric average for a non-empty set of values.
 function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+// Convert cumulative tap voltages into per-cell voltages expected by the UI.
+function computeCellVoltagesFromTapReadings(tapVoltages: number[]) {
+  return tapVoltages.map((tapVoltage, index) => {
+    const previousTapVoltage = index === 0 ? 0 : tapVoltages[index - 1]
+    return Number((tapVoltage - previousTapVoltage).toFixed(2))
+  })
 }
 
 type LiveTelemetryData = {
@@ -142,56 +158,65 @@ type LiveTelemetryData = {
 
 type ComputedTelemetryMetrics = {
   packVoltage: number
+  cellVoltages: number[]
   averageVoltage: number
-  averageTemperature: number
-  highestTemperature: number
-  lowestTemperature: number
+  averageTemperature: number | null
+  highestTemperature: number | null
+  lowestTemperature: number | null
 }
 
+// Derive UI-friendly metrics from the normalized serial payload.
 function computeTelemetryMetrics(data: LiveTelemetryData): ComputedTelemetryMetrics {
+  const cellVoltages = computeCellVoltagesFromTapReadings(data.voltages)
+  const packVoltage = Math.max(...data.voltages)
+
   return {
-    packVoltage: Number(data.voltages.reduce((sum, value) => sum + value, 0).toFixed(2)),
-    averageVoltage: average(data.voltages),
-    averageTemperature: average(data.temps),
-    highestTemperature: Math.max(...data.temps),
-    lowestTemperature: Math.min(...data.temps),
+    packVoltage: Number(packVoltage.toFixed(2)),
+    cellVoltages,
+    averageVoltage: average(cellVoltages),
+    averageTemperature: data.temps.length > 0 ? average(data.temps) : null,
+    highestTemperature: data.temps.length > 0 ? Math.max(...data.temps) : null,
+    lowestTemperature: data.temps.length > 0 ? Math.min(...data.temps) : null,
   }
 }
 
+// Update the live telemetry snapshot from one parsed serial sample.
 function updateTelemetryFromSerial(data: LiveTelemetryData, metrics: ComputedTelemetryMetrics) {
   removeAlert(serialDisconnectedAlert)
 
   batteryTelemetry.homeMetrics.currentVoltage = metrics.packVoltage
   batteryTelemetry.homeMetrics.current = Number(data.current.toFixed(2))
-  batteryTelemetry.homeMetrics.temperature = Number(metrics.averageTemperature.toFixed(2))
+  if (metrics.averageTemperature != null) {
+    batteryTelemetry.homeMetrics.temperature = Number(metrics.averageTemperature.toFixed(2))
+  }
 
   batteryTelemetry.voltagePage.sensorVoltages = data.voltages.map((value) => Number(value.toFixed(2)))
   batteryTelemetry.voltagePage.averageCellVoltage = Number(metrics.averageVoltage.toFixed(2))
-  batteryTelemetry.voltagePage.highestCellVoltage = Number(Math.max(...data.voltages).toFixed(2))
-  batteryTelemetry.voltagePage.lowestCellVoltage = Number(Math.min(...data.voltages).toFixed(2))
+  batteryTelemetry.voltagePage.highestCellVoltage = Number(Math.max(...metrics.cellVoltages).toFixed(2))
+  batteryTelemetry.voltagePage.lowestCellVoltage = Number(Math.min(...metrics.cellVoltages).toFixed(2))
   appendHistory(batteryTelemetry.voltagePage.averageVoltageHistory, metrics.averageVoltage)
 
   batteryTelemetry.currentPage.sensorCurrent = Number(data.current.toFixed(2))
   appendHistory(batteryTelemetry.currentPage.currentHistory, data.current)
 
-  batteryTelemetry.temperaturePage.sensorTemperatures = data.temps.map((value) => Number(value.toFixed(2)))
-  batteryTelemetry.temperaturePage.averageTemperature = Number(metrics.averageTemperature.toFixed(2))
-  batteryTelemetry.temperaturePage.highestTemperature = Number(metrics.highestTemperature.toFixed(2))
-  batteryTelemetry.temperaturePage.lowestTemperature = Number(metrics.lowestTemperature.toFixed(2))
-  appendHistory(batteryTelemetry.temperaturePage.averageTemperatureHistory, metrics.averageTemperature)
+  if (metrics.averageTemperature != null) {
+    batteryTelemetry.temperaturePage.sensorTemperatures = data.temps.map((value) => Number(value.toFixed(2)))
+    batteryTelemetry.temperaturePage.averageTemperature = Number(metrics.averageTemperature.toFixed(2))
+    batteryTelemetry.temperaturePage.highestTemperature = Number(metrics.highestTemperature!.toFixed(2))
+    batteryTelemetry.temperaturePage.lowestTemperature = Number(metrics.lowestTemperature!.toFixed(2))
+    appendHistory(batteryTelemetry.temperaturePage.averageTemperatureHistory, metrics.averageTemperature)
+  }
 
   sendTelemetryUpdate()
 }
 
+// Mark the live feed as disconnected without clearing the most recent telemetry values.
 function setSerialDisconnected() {
-  if (pollingStopped) {
-    return
-  }
-
   addAlert(serialDisconnectedAlert)
   sendTelemetryUpdate()
 }
 
+// Toggle the alert that indicates whether the current discharge is being recorded.
 function setRecordingAlert(isRecording: boolean) {
   if (isRecording) {
     addAlert(dischargeRecordingAlert)
@@ -201,6 +226,7 @@ function setRecordingAlert(isRecording: boolean) {
   removeAlert(dischargeRecordingAlert)
 }
 
+// Ask the user to confirm that a sustained discharge current should start a discharge cycle.
 async function confirmDischargeStart(packVoltage: number, current: number): Promise<boolean> {
   addAlert(dischargeConfirmationAlert)
   sendTelemetryUpdate()
@@ -223,6 +249,7 @@ async function confirmDischargeStart(packVoltage: number, current: number): Prom
   return response.response === 0
 }
 
+// Open a new discharge cycle in the database and update the live cycle state.
 function startDischargeCycle(timestampMs: number, packVoltage: number, current: number) {
   if (telemetryStore == null || activeCycleId != null) {
     return
@@ -235,6 +262,7 @@ function startDischargeCycle(timestampMs: number, packVoltage: number, current: 
   sendTelemetryUpdate()
 }
 
+// Close the active discharge cycle and reset the cycle-detection state machine.
 function endDischargeCycle(
   timestampMs: number,
   packVoltage: number,
@@ -251,6 +279,7 @@ function endDischargeCycle(
   setRecordingAlert(false)
 }
 
+// Persist one live sample into the currently active discharge cycle.
 function persistSample(
   timestampMs: number,
   data: LiveTelemetryData,
@@ -265,24 +294,27 @@ function persistSample(
     recordedAtMs: timestampMs,
     packVoltage: metrics.packVoltage,
     current: data.current,
-    averageTemperature: metrics.averageTemperature,
-    highestTemperature: metrics.highestTemperature,
-    lowestTemperature: metrics.lowestTemperature,
+    averageTemperature: metrics.averageTemperature ?? batteryTelemetry.temperaturePage.averageTemperature,
+    highestTemperature: metrics.highestTemperature ?? batteryTelemetry.temperaturePage.highestTemperature,
+    lowestTemperature: metrics.lowestTemperature ?? batteryTelemetry.temperaturePage.lowestTemperature,
     cellVoltages: data.voltages,
-    sensorTemperatures: data.temps,
+    sensorTemperatures: data.temps.length > 0
+      ? data.temps
+      : batteryTelemetry.temperaturePage.sensorTemperatures,
   })
 }
 
+// Stop discharge logging at the low-voltage limit while keeping live telemetry running.
 async function stopPollingForVoltageLimit(
   timestampMs: number,
   data: LiveTelemetryData,
   metrics: ComputedTelemetryMetrics
 ) {
-  if (pollingStopped) {
+  if (loggingStoppedForLowVoltage) {
     return
   }
 
-  pollingStopped = true
+  loggingStoppedForLowVoltage = true
   addAlert(lowVoltageAlert)
   removeAlert(serialDisconnectedAlert)
   removeAlert(dischargeConfirmationAlert)
@@ -293,15 +325,13 @@ async function stopPollingForVoltageLimit(
     endDischargeCycle(timestampMs, metrics.packVoltage, 'completed', 'voltage_limit')
   }
 
-  stopSerialReader?.()
-  stopSerialReader = null
   sendTelemetryUpdate()
 
   const dialogOptions: MessageBoxOptions = {
     type: 'error',
-    title: 'Voltage Limit Reached',
+    title: 'Voltage Below Limit',
     message: 'Pack voltage reached 35 V.',
-    detail: 'Data polling has been stopped to protect the pack.',
+    detail: 'Discharge logging has been stopped, but live telemetry will continue updating.',
     buttons: ['OK'],
     defaultId: 0,
     noLink: true,
@@ -315,26 +345,29 @@ async function stopPollingForVoltageLimit(
   await dialog.showMessageBox(dialogOptions)
 }
 
+// Advance the discharge-cycle state machine based on the newest live sample.
 async function handleDischargeState(
   timestampMs: number,
   data: LiveTelemetryData,
   metrics: ComputedTelemetryMetrics
 ) {
-  if (pollingStopped) {
-    return
-  }
-
-  if (metrics.packVoltage <= minimumPackVoltage) {
+  if (activeCycleId != null && metrics.packVoltage <= minimumPackVoltage) {
     await stopPollingForVoltageLimit(timestampMs, data, metrics)
     return
   }
 
-  if (activeCycleId != null) {
+  if (metrics.packVoltage > minimumPackVoltage && loggingStoppedForLowVoltage) {
+    loggingStoppedForLowVoltage = false
+    removeAlert(lowVoltageAlert)
+    sendTelemetryUpdate()
+  }
+
+  if (activeCycleId != null && !loggingStoppedForLowVoltage) {
     persistSample(timestampMs, data, metrics)
   }
 
   if (activeCycleId == null && dischargeState !== 'awaiting_confirmation') {
-    if (data.current <= dischargeStartThresholdAmps) {
+    if (data.current >= dischargeStartThresholdAmps) {
       if (dischargeState !== 'candidate_discharge') {
         dischargeState = 'candidate_discharge'
         dischargeStateSinceMs = timestampMs
@@ -345,7 +378,7 @@ async function handleDischargeState(
         dischargeState = 'awaiting_confirmation'
         const confirmed = await confirmDischargeStart(metrics.packVoltage, data.current)
 
-        if (pollingStopped) {
+        if (loggingStoppedForLowVoltage) {
           return
         }
 
@@ -370,7 +403,7 @@ async function handleDischargeState(
     return
   }
 
-  if (data.current > dischargeEndThresholdAmps) {
+  if (data.current < dischargeEndThresholdAmps) {
     if (dischargeState !== 'candidate_end') {
       dischargeState = 'candidate_end'
       dischargeStateSinceMs = timestampMs
@@ -389,10 +422,11 @@ async function handleDischargeState(
   dischargeStateSinceMs = timestampMs
 }
 
+// Create the Electron browser window and verify that the preload bridge is available after load.
 function createWindow() {
   mainWindow = new BrowserWindow({
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -400,10 +434,19 @@ function createWindow() {
 
   if (isDev()) {
     void mainWindow.loadURL('http://localhost:5555')
-    return
+  } else {
+    void mainWindow.loadFile(path.join(app.getAppPath(), 'dist-react/index.html'))
   }
 
-  void mainWindow.loadFile(path.join(app.getAppPath(), 'dist-react/index.html'))
+  mainWindow.webContents.on('did-finish-load', () => {
+    void mainWindow?.webContents.executeJavaScript('typeof window.bmsApi')
+      .then((result) => {
+        console.log('WINDOW window.bmsApi type', result)
+      })
+      .catch((error) => {
+        console.error('WINDOW failed to inspect window.bmsApi', error)
+      })
+  })
 }
 
 app.whenReady().then(() => {

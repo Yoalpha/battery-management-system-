@@ -13,6 +13,7 @@ type ParseSerialOptions = {
   reconnectDelayMs?: number
 }
 
+// Validate the Arduino payload and coerce it into the shape expected by the Electron runtime.
 function normalizeArduinoData(data: ArduinoData): NormalizedArduinoData | null {
   const currentValue = Array.isArray(data.current) ? data.current[0] : data.current
 
@@ -28,7 +29,7 @@ function normalizeArduinoData(data: ArduinoData): NormalizedArduinoData | null {
   const temps = data.temps.filter((value) => typeof value === 'number' && !Number.isNaN(value))
   const voltages = data.voltages.filter((value) => typeof value === 'number' && !Number.isNaN(value))
 
-  if (temps.length === 0 || voltages.length === 0) {
+  if (voltages.length === 0) {
     return null
   }
 
@@ -39,6 +40,7 @@ function normalizeArduinoData(data: ArduinoData): NormalizedArduinoData | null {
   }
 }
 
+// Maintain a resilient serial parser loop that reconnects when the Arduino is missing or disconnected.
 export async function parseSerial(
   {
     onData,

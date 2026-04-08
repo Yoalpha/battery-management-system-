@@ -1,6 +1,7 @@
 import './App.css'
 import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
+import { createDemoCycleData } from '../shared/demoCycle'
 import { HomePage } from './pages/HomePage'
 import { HistoryPage } from './pages/HistoryPage'
 import { CurrentPage } from './pages/CurrentPage'
@@ -11,7 +12,6 @@ import type {
   DischargeCycleDetail,
   DischargeCycleSummary,
   PageId,
-  TrendPoint,
 } from './types/battery'
 
 const navItems = [
@@ -33,6 +33,7 @@ const fallbackTelemetry: BatteryTelemetry = {
     stateOfChargePercent: 0,
     stateOfChargeMah: 0,
     remainingCycles: 0,
+    internalResistanceGrowth: 0
   },
   voltagePage: {
     sensorVoltages: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -63,45 +64,7 @@ const fallbackTelemetry: BatteryTelemetry = {
   },
 }
 
-const demoCycleStartedAtMs = Date.now() - (2 * 60 + 15) * 60_000
-const demoCycleSampleCount = 45
-const demoCycleIntervalMs = 30_000
-
-function createDemoTrendPoints(
-  sampleValue: (index: number, progress: number) => number
-): TrendPoint[] {
-  return Array.from({ length: demoCycleSampleCount }, (_, index) => {
-    const timestampMs = demoCycleStartedAtMs + index * demoCycleIntervalMs
-    const progress = index / Math.max(demoCycleSampleCount - 1, 1)
-
-    return {
-      time: new Date(timestampMs).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      timestampMs,
-      value: Number(sampleValue(index, progress).toFixed(2)),
-    }
-  })
-}
-
-const demoCycleDetail: DischargeCycleDetail = {
-  summary: {
-    id: -1,
-    startedAtMs: demoCycleStartedAtMs,
-    endedAtMs: demoCycleStartedAtMs + (demoCycleSampleCount - 1) * demoCycleIntervalMs,
-    status: 'demo',
-    startPackVoltage: 50.6,
-    endPackVoltage: 35.2,
-    triggerCurrent: -12.4,
-    sampleCount: demoCycleSampleCount,
-    drainedMah: 4021.5,
-  },
-  voltageTrend: createDemoTrendPoints((_index, progress) => 50.6 - progress * 15.4),
-  currentTrend: createDemoTrendPoints((index, progress) => -(12.4 - progress * 3.2 + Math.sin(index / 5) * 0.45)),
-  temperatureTrend: createDemoTrendPoints((index, progress) => 27.5 + progress * 8.6 + Math.sin(index / 6) * 0.35),
-}
-
+const demoCycleDetail: DischargeCycleDetail = createDemoCycleData().detail
 const demoCycles: DischargeCycleSummary[] = [demoCycleDetail.summary]
 
 function App() {

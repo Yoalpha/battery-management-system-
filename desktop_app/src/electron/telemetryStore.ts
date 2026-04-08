@@ -6,6 +6,7 @@ import type {
   DischargeCycleSummary,
   TrendPoint,
 } from '../shared/battery.js'
+import { createDemoCycleData } from '../shared/demoCycle.js'
 
 export type PersistedTelemetrySample = {
   cycleId: number
@@ -43,6 +44,7 @@ type SampleRow = {
 export class TelemetryStore {
   private readonly database: DatabaseSync
 
+  // Open the SQLite database and ensure schema plus optional demo data exist before runtime use.
   constructor(databaseDirectory: string) {
     mkdirSync(databaseDirectory, { recursive: true })
     const databasePath = path.join(databaseDirectory, 'telemetry.sqlite')
@@ -53,6 +55,7 @@ export class TelemetryStore {
     this.seedDemoCycleIfEmpty()
   }
 
+  // Create the cycle and sample tables used by the history page and discharge logging pipeline.
   private initialize() {
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS cycles (
@@ -86,6 +89,7 @@ export class TelemetryStore {
     `)
   }
 
+  // Seed one demo discharge cycle so the history page has content on a fresh database.
   private seedDemoCycleIfEmpty() {
     const row = this.database
       .prepare('SELECT COUNT(*) AS cycle_count FROM cycles')
@@ -95,45 +99,37 @@ export class TelemetryStore {
       return
     }
 
-    const now = Date.now()
-    const startedAtMs = now - (2 * 60 + 15) * 60_000
-    const sampleIntervalMs = 30_000
-    const sampleCount = 45
-    const cycleId = this.startCycle(startedAtMs, -12.4, 50.6)
+    const demoCycle = createDemoCycleData()
+    const cycleId = this.startCycle(
+      demoCycle.detail.summary.startedAtMs,
+      demoCycle.detail.summary.triggerCurrent,
+      demoCycle.detail.summary.startPackVoltage
+    )
 
-    for (let index = 0; index < sampleCount; index += 1) {
-      const progress = index / Math.max(sampleCount - 1, 1)
-      const recordedAtMs = startedAtMs + index * sampleIntervalMs
-      const packVoltage = 50.6 - progress * 15.4
-      const current = -(12.4 - progress * 3.2 + Math.sin(index / 5) * 0.45)
-      const averageTemperature = 27.5 + progress * 8.6 + Math.sin(index / 6) * 0.35
-      const cellBaseVoltage = packVoltage / 12
-      const cellVoltages = Array.from({ length: 12 }, (_, cellIndex) => {
-        const offset = (cellIndex % 4) * 0.008 - 0.012
-        return Number((cellBaseVoltage + offset).toFixed(3))
-      })
-      const sensorTemperatures = Array.from({ length: 4 }, (_, sensorIndex) => {
-        const offset = sensorIndex * 0.45 - 0.65
-        return Number((averageTemperature + offset).toFixed(2))
-      })
-
+    for (const sample of demoCycle.samples) {
       this.insertSample({
         cycleId,
-        recordedAtMs,
-        packVoltage: Number(packVoltage.toFixed(2)),
-        current: Number(current.toFixed(2)),
-        averageTemperature: Number(averageTemperature.toFixed(2)),
-        highestTemperature: Math.max(...sensorTemperatures),
-        lowestTemperature: Math.min(...sensorTemperatures),
-        cellVoltages,
-        sensorTemperatures,
+        recordedAtMs: sample.recordedAtMs,
+        packVoltage: sample.packVoltage,
+        current: sample.current,
+        averageTemperature: sample.averageTemperature,
+        highestTemperature: sample.highestTemperature,
+        lowestTemperature: sample.lowestTemperature,
+        cellVoltages: sample.cellVoltages,
+        sensorTemperatures: sample.sensorTemperatures,
       })
     }
 
-    const endedAtMs = startedAtMs + (sampleCount - 1) * sampleIntervalMs
-    this.endCycle(cycleId, endedAtMs, 'completed', 'voltage_limit', 35.2)
+    this.endCycle(
+      cycleId,
+      demoCycle.detail.summary.endedAtMs ?? demoCycle.detail.summary.startedAtMs,
+      'completed',
+      'voltage_limit',
+      demoCycle.detail.summary.endPackVoltage ?? demoCycle.detail.summary.startPackVoltage
+    )
   }
 
+  // Insert a new active discharge cycle row and return its generated id.
   startCycle(startedAtMs: number, triggerCurrent: number, startPackVoltage: number): number {
     const result = this.database
       .prepare(`
@@ -150,6 +146,7 @@ export class TelemetryStore {
     return Number(result.lastInsertRowid)
   }
 
+  // Persist one discharge-cycle sample with pack metrics plus raw per-cell and temperature arrays.
   insertSample(sample: PersistedTelemetrySample) {
     this.database
       .prepare(`
@@ -178,6 +175,7 @@ export class TelemetryStore {
       )
   }
 
+  // Mark an active cycle as completed or aborted once recording stops.
   endCycle(
     cycleId: number,
     endedAtMs: number,
@@ -197,6 +195,7 @@ export class TelemetryStore {
       .run(endedAtMs, status, endReason, endPackVoltage, cycleId)
   }
 
+  // Load the compact list of discharge cycles shown on the history page.
   getCycleSummaries(): DischargeCycleSummary[] {
     const rows = this.database
       .prepare(`
@@ -223,6 +222,7 @@ export class TelemetryStore {
     })
   }
 
+  // Load the full trend series and summary metrics for one discharge cycle.
   getCycleDetail(cycleId: number): DischargeCycleDetail | null {
     const row = this.database
       .prepare(`
@@ -256,6 +256,7 @@ export class TelemetryStore {
     }
   }
 
+  // Fetch all persisted samples for one cycle in chronological order.
   private getSamplesForCycle(cycleId: number): SampleRow[] {
     return this.database
       .prepare(`
@@ -271,6 +272,7 @@ export class TelemetryStore {
       .all(cycleId) as SampleRow[]
   }
 
+  // Convert one SQL row plus its samples into the UI summary shape.
   private mapSummaryRow(row: CycleRow, samples: SampleRow[]): DischargeCycleSummary {
     return {
       id: row.id,
@@ -285,6 +287,7 @@ export class TelemetryStore {
     }
   }
 
+  // Convert a timestamped numeric value into the chart point shape used by the renderer.
   private createTrendPoint(timestampMs: number, value: number): TrendPoint {
     return {
       time: new Date(timestampMs).toLocaleTimeString([], {
@@ -296,6 +299,7 @@ export class TelemetryStore {
     }
   }
 
+  // Integrate current over time to estimate how much charge was discharged in mAh.
   private calculateDrainedMah(samples: SampleRow[]): number {
     if (samples.length < 2) {
       return 0
@@ -316,6 +320,7 @@ export class TelemetryStore {
     return drainedAmpHours * 1000
   }
 
+  // Close the SQLite connection when Electron exits.
   close() {
     this.database.close()
   }

@@ -8,6 +8,7 @@ type SerialReaderOptions = {
   onClose?: () => void
 }
 
+// Open the detected serial port, emit complete lines, and return a cleanup handler for disconnect/retry logic.
 export async function serialReader({
   onLine,
   onError,

@@ -36,6 +36,7 @@ export type BatteryTelemetry = {
     stateOfChargePercent: number
     stateOfChargeMah: number
     remainingCycles: number
+    internalResistanceGrowth: number
   }
   voltagePage: {
     sensorVoltages: number[]
