@@ -49,6 +49,7 @@ export function TemperaturePage({ temperaturePage }: TemperaturePageProps) {
           title="Average temperature over time"
           ariaLabel="Average temperature over time graph"
           accent="temperature"
+          unit="°C"
         />
       </div>
 

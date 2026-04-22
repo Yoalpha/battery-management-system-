@@ -31,7 +31,10 @@ type CycleRow = {
   trigger_current: number
   start_pack_voltage: number
   end_pack_voltage: number | null
+  start_internal_resistance: number | null
+  final_internal_resistance: number | null
   sample_count: number
+  final_internal_resistance_growth: number
 }
 
 type SampleRow = {
@@ -40,6 +43,9 @@ type SampleRow = {
   current: number
   average_temperature: number
 }
+
+const packHealthStartVoltage = 46.5
+const packHealthCutoffVoltage = 40
 
 export class TelemetryStore {
   private readonly database: DatabaseSync
@@ -67,7 +73,10 @@ export class TelemetryStore {
         end_reason TEXT,
         trigger_current REAL NOT NULL,
         start_pack_voltage REAL NOT NULL,
-        end_pack_voltage REAL
+        end_pack_voltage REAL,
+        start_internal_resistance REAL,
+        final_internal_resistance REAL,
+        final_internal_resistance_growth REAL NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS telemetry_samples (
@@ -87,6 +96,33 @@ export class TelemetryStore {
       CREATE INDEX IF NOT EXISTS idx_cycles_status ON cycles(status);
       CREATE INDEX IF NOT EXISTS idx_samples_cycle_time ON telemetry_samples(cycle_id, recorded_at_ms);
     `)
+
+    try {
+      this.database.exec(`
+        ALTER TABLE cycles
+        ADD COLUMN final_internal_resistance_growth REAL NOT NULL DEFAULT 0
+      `)
+    } catch {
+      // Column already exists on upgraded databases.
+    }
+
+    try {
+      this.database.exec(`
+        ALTER TABLE cycles
+        ADD COLUMN start_internal_resistance REAL
+      `)
+    } catch {
+      // Column already exists on upgraded databases.
+    }
+
+    try {
+      this.database.exec(`
+        ALTER TABLE cycles
+        ADD COLUMN final_internal_resistance REAL
+      `)
+    } catch {
+      // Column already exists on upgraded databases.
+    }
   }
 
   // Seed one demo discharge cycle so the history page has content on a fresh database.
@@ -103,7 +139,8 @@ export class TelemetryStore {
     const cycleId = this.startCycle(
       demoCycle.detail.summary.startedAtMs,
       demoCycle.detail.summary.triggerCurrent,
-      demoCycle.detail.summary.startPackVoltage
+      demoCycle.detail.summary.startPackVoltage,
+      demoCycle.detail.summary.startInternalResistance
     )
 
     for (const sample of demoCycle.samples) {
@@ -125,12 +162,20 @@ export class TelemetryStore {
       demoCycle.detail.summary.endedAtMs ?? demoCycle.detail.summary.startedAtMs,
       'completed',
       'voltage_limit',
-      demoCycle.detail.summary.endPackVoltage ?? demoCycle.detail.summary.startPackVoltage
+      demoCycle.detail.summary.endPackVoltage ?? demoCycle.detail.summary.startPackVoltage,
+      demoCycle.detail.summary.startInternalResistance,
+      demoCycle.detail.summary.endInternalResistance,
+      demoCycle.detail.summary.internalResistanceGrowth
     )
   }
 
   // Insert a new active discharge cycle row and return its generated id.
-  startCycle(startedAtMs: number, triggerCurrent: number, startPackVoltage: number): number {
+  startCycle(
+    startedAtMs: number,
+    triggerCurrent: number,
+    startPackVoltage: number,
+    startInternalResistance: number | null
+  ): number {
     const result = this.database
       .prepare(`
         INSERT INTO cycles (
@@ -138,10 +183,11 @@ export class TelemetryStore {
           status,
           start_reason,
           trigger_current,
-          start_pack_voltage
-        ) VALUES (?, 'active', 'auto_discharge_detected', ?, ?)
+          start_pack_voltage,
+          start_internal_resistance
+        ) VALUES (?, 'active', 'auto_discharge_detected', ?, ?, ?)
       `)
-      .run(startedAtMs, triggerCurrent, startPackVoltage)
+      .run(startedAtMs, triggerCurrent, startPackVoltage, startInternalResistance)
 
     return Number(result.lastInsertRowid)
   }
@@ -181,7 +227,10 @@ export class TelemetryStore {
     endedAtMs: number,
     status: CycleEndStatus,
     endReason: CycleEndReason,
-    endPackVoltage: number
+    endPackVoltage: number,
+    startInternalResistance: number | null,
+    finalInternalResistance: number | null,
+    finalInternalResistanceGrowth: number
   ) {
     this.database
       .prepare(`
@@ -189,10 +238,22 @@ export class TelemetryStore {
         SET ended_at_ms = ?,
             status = ?,
             end_reason = ?,
-            end_pack_voltage = ?
+            end_pack_voltage = ?,
+            start_internal_resistance = ?,
+            final_internal_resistance = ?,
+            final_internal_resistance_growth = ?
         WHERE id = ?
       `)
-      .run(endedAtMs, status, endReason, endPackVoltage, cycleId)
+      .run(
+        endedAtMs,
+        status,
+        endReason,
+        endPackVoltage,
+        startInternalResistance,
+        finalInternalResistance,
+        finalInternalResistanceGrowth,
+        cycleId
+      )
   }
 
   // Load the compact list of discharge cycles shown on the history page.
@@ -207,6 +268,9 @@ export class TelemetryStore {
           cycles.trigger_current,
           cycles.start_pack_voltage,
           cycles.end_pack_voltage,
+          cycles.start_internal_resistance,
+          cycles.final_internal_resistance,
+          cycles.final_internal_resistance_growth,
           COUNT(telemetry_samples.id) AS sample_count
         FROM cycles
         LEFT JOIN telemetry_samples ON telemetry_samples.cycle_id = cycles.id
@@ -234,6 +298,9 @@ export class TelemetryStore {
           cycles.trigger_current,
           cycles.start_pack_voltage,
           cycles.end_pack_voltage,
+          cycles.start_internal_resistance,
+          cycles.final_internal_resistance,
+          cycles.final_internal_resistance_growth,
           COUNT(telemetry_samples.id) AS sample_count
         FROM cycles
         LEFT JOIN telemetry_samples ON telemetry_samples.cycle_id = cycles.id
@@ -284,6 +351,13 @@ export class TelemetryStore {
       triggerCurrent: row.trigger_current,
       sampleCount: row.sample_count,
       drainedMah: Number(this.calculateDrainedMah(samples).toFixed(2)),
+      startInternalResistance: row.start_internal_resistance != null
+        ? Number(row.start_internal_resistance.toFixed(4))
+        : null,
+      endInternalResistance: row.final_internal_resistance != null
+        ? Number(row.final_internal_resistance.toFixed(4))
+        : null,
+      internalResistanceGrowth: Number(row.final_internal_resistance_growth.toFixed(4)),
     }
   }
 
@@ -299,7 +373,7 @@ export class TelemetryStore {
     }
   }
 
-  // Integrate current over time to estimate how much charge was discharged in mAh.
+  // Integrate discharge current across the 46.5 V to 40.0 V pack-voltage window.
   private calculateDrainedMah(samples: SampleRow[]): number {
     if (samples.length < 2) {
       return 0
@@ -310,11 +384,36 @@ export class TelemetryStore {
     for (let index = 1; index < samples.length; index += 1) {
       const previous = samples[index - 1]
       const current = samples[index]
-      const elapsedHours = (current.recorded_at_ms - previous.recorded_at_ms) / 3_600_000
-      const averageCurrent = (previous.current + current.current) / 2
-      const dischargeCurrent = Math.max(-averageCurrent, 0)
 
-      drainedAmpHours += dischargeCurrent * elapsedHours
+      if (previous.pack_voltage > packHealthStartVoltage) {
+        continue
+      }
+
+      if (previous.pack_voltage < packHealthCutoffVoltage) {
+        break
+      }
+
+      const elapsedHours = Math.max(current.recorded_at_ms - previous.recorded_at_ms, 0) / 3_600_000
+      if (elapsedHours === 0) {
+        continue
+      }
+
+      const previousCurrent = Math.max(previous.current, 0)
+      const nextCurrent = Math.max(current.current, 0)
+
+      if (current.pack_voltage >= packHealthCutoffVoltage) {
+        drainedAmpHours += ((previousCurrent + nextCurrent) / 2) * elapsedHours
+        continue
+      }
+
+      const voltageSpan = previous.pack_voltage - current.pack_voltage
+      const fractionUntilCutoff = voltageSpan > 0
+        ? (previous.pack_voltage - packHealthCutoffVoltage) / voltageSpan
+        : 0
+      const clampedFraction = Math.min(Math.max(fractionUntilCutoff, 0), 1)
+      const cutoffCurrent = previousCurrent + (nextCurrent - previousCurrent) * clampedFraction
+      drainedAmpHours += ((previousCurrent + cutoffCurrent) / 2) * elapsedHours * clampedFraction
+      break
     }
 
     return drainedAmpHours * 1000

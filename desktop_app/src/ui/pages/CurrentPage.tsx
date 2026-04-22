@@ -54,6 +54,7 @@ export function CurrentPage({ currentPage }: CurrentPageProps) {
           title="Current over time"
           ariaLabel="Current over time graph"
           accent="current"
+          unit="A"
         />
       </div>
 

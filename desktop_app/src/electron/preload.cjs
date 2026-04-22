@@ -4,6 +4,7 @@ const batteryTelemetryChannel = 'battery:telemetry'
 
 contextBridge.exposeInMainWorld('bmsApi', {
   getBatteryTelemetry: () => ipcRenderer.invoke('battery:get-telemetry'),
+  stopActiveDischargeCycle: () => ipcRenderer.invoke('cycles:stop-active'),
   getDischargeCycles: () => ipcRenderer.invoke('cycles:list'),
   getDischargeCycleDetail: (cycleId) => ipcRenderer.invoke('cycles:get-detail', cycleId),
   subscribeToBatteryTelemetry: (listener) => {

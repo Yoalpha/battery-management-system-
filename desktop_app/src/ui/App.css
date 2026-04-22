@@ -192,6 +192,28 @@ body {
   color: var(--text-secondary);
 }
 
+.alerts-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.alerts-card__header > span {
+  color: var(--text-secondary);
+}
+
+.alerts-card__action {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(143, 93, 68, 0.12);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .alerts-card__list {
   display: grid;
   gap: 12px;
@@ -328,7 +350,7 @@ body {
 
 .state-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px;
   margin-top: 24px;
 }
@@ -448,6 +470,11 @@ body {
 }
 
 .trend-chart__label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+}
+
+.trend-chart__axis-label {
   fill: var(--text-secondary);
   font-size: 12px;
 }

@@ -90,7 +90,7 @@ export function HistoryPage({
                     <strong>{getCycleStatusLabel(cycle)}</strong>
                   </div>
                   <div>
-                    <span>Drained</span>
+                    <span>Capacity Loss</span>
                     <strong>{cycle.drainedMah} mAh</strong>
                   </div>
                   <div>
@@ -133,6 +133,30 @@ export function HistoryPage({
                           accent="temperature"
                           compact
                         />
+                        <MetricCard
+                          title="Resistance Growth"
+                          value={String(detail.summary.internalResistanceGrowth)}
+                          unit="ohms"
+                          trend="Pack internal resistance growth over the cycle"
+                          accent="voltage"
+                          compact
+                        />
+                        <MetricCard
+                          title="Initial Resistance"
+                          value={detail.summary.startInternalResistance != null ? String(detail.summary.startInternalResistance) : '--'}
+                          unit="ohms"
+                          trend="Pack internal resistance at discharge start"
+                          accent="current"
+                          compact
+                        />
+                        <MetricCard
+                          title="Final Resistance"
+                          value={detail.summary.endInternalResistance != null ? String(detail.summary.endInternalResistance) : '--'}
+                          unit="ohms"
+                          trend="Pack internal resistance at discharge end"
+                          accent="temperature"
+                          compact
+                        />
                       </section>
 
                       <div className="history-trend-grid">
@@ -142,6 +166,7 @@ export function HistoryPage({
                           title="Pack voltage across discharge"
                           ariaLabel="Pack voltage for the full discharge cycle"
                           accent="voltage"
+                          unit="V"
                           windowMs={null}
                         />
                         <TrendChart
@@ -150,6 +175,7 @@ export function HistoryPage({
                           title="Current across discharge"
                           ariaLabel="Current for the full discharge cycle"
                           accent="current"
+                          unit="A"
                           windowMs={null}
                         />
                         <TrendChart
@@ -158,6 +184,7 @@ export function HistoryPage({
                           title="Average temperature across discharge"
                           ariaLabel="Temperature for the full discharge cycle"
                           accent="temperature"
+                          unit="°C"
                           windowMs={null}
                         />
                       </div>

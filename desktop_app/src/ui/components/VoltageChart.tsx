@@ -13,6 +13,7 @@ export function VoltageChart({ data }: VoltageChartProps) {
       title="Voltage over time"
       ariaLabel="Voltage over time graph"
       accent="voltage"
+      unit="V"
     />
   )
 }

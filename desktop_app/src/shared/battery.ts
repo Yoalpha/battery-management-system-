@@ -16,6 +16,9 @@ export type DischargeCycleSummary = {
   triggerCurrent: number
   sampleCount: number
   drainedMah: number
+  startInternalResistance: number | null
+  endInternalResistance: number | null
+  internalResistanceGrowth: number
 }
 
 export type DischargeCycleDetail = {
@@ -36,6 +39,8 @@ export type BatteryTelemetry = {
     stateOfChargePercent: number
     stateOfChargeMah: number
     remainingCycles: number
+    initialInternalResistance: number | null
+    finalInternalResistance: number | null
     internalResistanceGrowth: number
   }
   voltagePage: {

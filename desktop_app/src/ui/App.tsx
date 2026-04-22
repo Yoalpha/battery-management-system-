@@ -33,6 +33,8 @@ const fallbackTelemetry: BatteryTelemetry = {
     stateOfChargePercent: 0,
     stateOfChargeMah: 0,
     remainingCycles: 0,
+    initialInternalResistance: null,
+    finalInternalResistance: null,
     internalResistanceGrowth: 0
   },
   voltagePage: {
@@ -160,6 +162,12 @@ function App() {
       })
   }
 
+  function handleStopDischarge() {
+    void window.bmsApi?.stopActiveDischargeCycle()
+  }
+
+  const canStopDischarge = telemetry.alerts.includes('Discharge cycle recording in progress.')
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -176,6 +184,8 @@ function App() {
             alerts={telemetry.alerts}
             homeMetrics={telemetry.homeMetrics}
             batteryState={telemetry.batteryState}
+            canStopDischarge={canStopDischarge}
+            onStopDischarge={handleStopDischarge}
           />
         )}
 
